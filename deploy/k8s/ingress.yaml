@@ -1,0 +1,15 @@
+# The front door. On k3s, the built-in Traefik picks this up: http://wikipulse.local → web.
+# nginx in the web pod then forwards /api and /ws to the api Service.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wikipulse
+spec:
+  rules:
+    - host: wikipulse.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: web, port: { number: 80 } }

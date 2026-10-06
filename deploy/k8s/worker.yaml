@@ -1,0 +1,30 @@
+# Stateless and horizontally scalable:  kubectl -n wikipulse scale deploy/worker --replicas=5
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: worker }
+  template:
+    metadata:
+      labels: { app: worker }
+    spec:
+      containers:
+        - name: worker
+          image: wikipulse
+          imagePullPolicy: IfNotPresent
+          command: [python, -m, wikipulse.worker]
+          envFrom:
+            - configMapRef: { name: wikipulse-config }
+            - secretRef: { name: wikipulse-keys }   # API keys: make k8s-secrets (from your .env)
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: postgres, key: POSTGRES_PASSWORD } }
+            - name: DATABASE_URL   # $(VAR) is expanded by Kubernetes from the variable above
+              value: postgresql://wikipulse:$(POSTGRES_PASSWORD)@postgres:5432/wikipulse
+          securityContext: { runAsNonRoot: true, allowPrivilegeEscalation: false }
+          resources:
+            requests: { cpu: 100m, memory: 128Mi }
+            limits: { memory: 384Mi }

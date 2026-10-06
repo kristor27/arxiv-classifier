@@ -1,0 +1,86 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/jetbrains-mono';
+
+/* Design tokens. Colors come from a colorblind-validated palette:
+   Jev / comparison LLM = categorical slots 1-2, verdicts = status colors (always shown with an icon + label). */
+:root {
+	color-scheme: light;
+	--bg: #f4f4f1;
+	--surface: #fcfcfb;
+	--surface-2: #efeeea;
+	--border: #e2e1dc;
+	--text: #0b0b0b;
+	--text-2: #52514e;
+	--muted: #86857f;
+	--jev: #2a78d6;
+	--llm: #eb6834;
+	--good: #0ca30c;
+	--warn: #fab219;
+	--crit: #d03b3b;
+	--glow: 0 0 0 1px var(--border), 0 1px 2px rgb(0 0 0 / 0.04);
+}
+@media (prefers-color-scheme: dark) {
+	:root:not([data-theme='light']) {
+		color-scheme: dark;
+		--bg: #0e0e0d;
+		--surface: #1a1a19;
+		--surface-2: #232321;
+		--border: #2d2d2a;
+		--text: #ffffff;
+		--text-2: #c3c2b7;
+		--muted: #8b8a82;
+		--jev: #3987e5;
+		--llm: #d95926;
+		--glow: 0 0 0 1px var(--border), 0 8px 24px rgb(0 0 0 / 0.25);
+	}
+}
+:root[data-theme='dark'] {
+	color-scheme: dark;
+	--bg: #0e0e0d;
+	--surface: #1a1a19;
+	--surface-2: #232321;
+	--border: #2d2d2a;
+	--text: #ffffff;
+	--text-2: #c3c2b7;
+	--muted: #8b8a82;
+	--jev: #3987e5;
+	--llm: #d95926;
+	--glow: 0 0 0 1px var(--border), 0 8px 24px rgb(0 0 0 / 0.25);
+}
+
+@theme inline {
+	--color-bg: var(--bg);
+	--color-surface: var(--surface);
+	--color-surface-2: var(--surface-2);
+	--color-border: var(--border);
+	--color-text: var(--text);
+	--color-text-2: var(--text-2);
+	--color-muted: var(--muted);
+	--color-jev: var(--jev);
+	--color-llm: var(--llm);
+	--color-good: var(--good);
+	--color-warn: var(--warn);
+	--color-crit: var(--crit);
+	--font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+	--font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+}
+
+body {
+	background: var(--bg);
+	color: var(--text);
+	font-family: var(--font-sans);
+	-webkit-font-smoothing: antialiased;
+}
+
+.card {
+	background: var(--surface);
+	border-radius: 14px;
+	box-shadow: var(--glow);
+}
+.num {
+	font-variant-numeric: tabular-nums;
+}
+@media (prefers-reduced-motion: reduce) {
+	*, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

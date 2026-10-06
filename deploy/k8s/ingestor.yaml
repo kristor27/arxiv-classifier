@@ -1,0 +1,31 @@
+# Exactly one replica, and Recreate: two ingestors at once would queue every edit twice.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ingestor
+spec:
+  replicas: 1
+  strategy: { type: Recreate }
+  selector:
+    matchLabels: { app: ingestor }
+  template:
+    metadata:
+      labels: { app: ingestor }
+    spec:
+      containers:
+        - name: ingestor
+          image: wikipulse
+          imagePullPolicy: IfNotPresent
+          command: [python, -m, wikipulse.ingestor]
+          envFrom:
+            - configMapRef: { name: wikipulse-config }
+            - secretRef: { name: wikipulse-keys }   # API keys: make k8s-secrets (from your .env)
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom: { secretKeyRef: { name: postgres, key: POSTGRES_PASSWORD } }
+            - name: DATABASE_URL   # $(VAR) is expanded by Kubernetes from the variable above
+              value: postgresql://wikipulse:$(POSTGRES_PASSWORD)@postgres:5432/wikipulse
+          securityContext: { runAsNonRoot: true, allowPrivilegeEscalation: false }
+          resources:
+            requests: { cpu: 50m, memory: 96Mi }
+            limits: { memory: 256Mi }

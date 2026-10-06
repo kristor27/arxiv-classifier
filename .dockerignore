@@ -1,0 +1,7 @@
+.venv
+.env
+.git
+web
+deploy
+docs
+**/__pycache__

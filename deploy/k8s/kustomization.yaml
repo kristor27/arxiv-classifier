@@ -1,0 +1,38 @@
+# kubectl apply -k deploy/k8s
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: wikipulse
+
+resources:
+  - namespace.yaml
+  - postgres.yaml
+  - redis.yaml
+  - ingestor.yaml
+  - worker.yaml
+  - reverts.yaml
+  - api.yaml
+  - web.yaml
+  - ingress.yaml
+
+# Non-secret settings, shared by every Python pod.
+configMapGenerator:
+  - name: wikipulse-config
+    literals:
+      - REDIS_URL=redis://redis:6379/0
+      - WIKIS=enwiki
+      - LLM_PROVIDER=claude          # or gemini
+      - LLM_SAMPLE_RATE=0.25
+      - WORKER_CONCURRENCY=8
+
+# Demo database password. On a real server, create this Secret by hand instead of committing it.
+secretGenerator:
+  - name: postgres
+    literals:
+      - POSTGRES_PASSWORD=wikipulse
+
+# Point these at a registry (e.g. ghcr.io/you/wikipulse) to deploy on a remote cluster.
+images:
+  - name: wikipulse
+    newTag: latest
+  - name: wikipulse-web
+    newTag: latest
