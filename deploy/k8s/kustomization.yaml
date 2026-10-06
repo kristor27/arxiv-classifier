@@ -1,7 +1,7 @@
 # kubectl apply -k deploy/k8s
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
-namespace: wikipulse
+namespace: arxiv-classifier
 
 resources:
   - namespace.yaml
@@ -9,30 +9,29 @@ resources:
   - redis.yaml
   - ingestor.yaml
   - worker.yaml
-  - reverts.yaml
   - api.yaml
   - web.yaml
   - ingress.yaml
 
 # Non-secret settings, shared by every Python pod.
 configMapGenerator:
-  - name: wikipulse-config
+  - name: arxiv-classifier-config
     literals:
       - REDIS_URL=redis://redis:6379/0
-      - WIKIS=enwiki
+      - POLL_MINUTES=15
       - LLM_PROVIDER=claude          # or gemini
-      - LLM_SAMPLE_RATE=0.25
+      - LLM_SAMPLE_RATE=1.0
       - WORKER_CONCURRENCY=8
 
 # Demo database password. On a real server, create this Secret by hand instead of committing it.
 secretGenerator:
   - name: postgres
     literals:
-      - POSTGRES_PASSWORD=wikipulse
+      - POSTGRES_PASSWORD=arxiv
 
-# Point these at a registry (e.g. ghcr.io/you/wikipulse) to deploy on a remote cluster.
+# Point these at a registry (e.g. ghcr.io/you/arxiv-classifier) to deploy on a remote cluster.
 images:
-  - name: wikipulse
+  - name: arxiv-classifier
     newTag: latest
-  - name: wikipulse-web
+  - name: arxiv-classifier-web
     newTag: latest

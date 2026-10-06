@@ -11,16 +11,16 @@ class Settings(BaseSettings):
 
     # The generative LLM Jev is compared against: "claude" (Sonnet 5.5) or "gemini" (3.8 Flash).
     llm_provider: str = "claude"
-    llm_sample_rate: float = 0.25  # share of edits also sent to the LLM, for the comparison
+    llm_sample_rate: float = 1.0  # share of papers also sent to the LLM; 1.0 = a full head-to-head on every paper
     anthropic_api_key: str = ""
     gemini_api_key: str = ""
 
     redis_url: str = "redis://localhost:6379/0"
-    database_url: str = "postgresql://wikipulse:wikipulse@localhost:5433/wikipulse"
+    database_url: str = "postgresql://arxiv:arxiv@localhost:5433/arxiv"
 
-    wikis: str = "enwiki"  # comma-separated, e.g. "enwiki,frwiki"
+    poll_minutes: int = 15  # how often the ingestor asks arXiv for new papers (arXiv announces once a day)
     worker_concurrency: int = 8
-    user_agent: str = "WikiPulse/0.1 (educational Jev demo; https://github.com/kristor27/wikipulse)"
+    user_agent: str = "arxiv-classifier/0.2 (educational Jev demo; https://github.com/kristor27/arxiv-classifier)"
 
 
 # Prices in USD per million tokens (checked 2026-10-01).

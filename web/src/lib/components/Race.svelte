@@ -1,21 +1,16 @@
 <script lang="ts">
-	import { ms, usd, VERDICTS } from '$lib/format';
+	import { CATEGORY_NAMES, fmtTimes, ms, usd } from '$lib/format';
 	import { live } from '$lib/live.svelte';
 	import type { Judgement } from '$lib/types';
-	import ProbBar from './ProbBar.svelte';
-	import VerdictBadge from './VerdictBadge.svelte';
 
+	// Invented abstracts (not real papers), each sitting between two categories on purpose.
 	const PRESETS = [
-		{ name: 'Sneaky fake fact', title: 'Marie Curie', anonymous: true,
-			removed: 'She was the first woman to win a Nobel Prize.',
-			added: 'She was the first woman to win a Nobel Prize, and in 1902 she also invented the microwave oven.' },
-		{ name: 'Honest mistake', title: 'Mount Everest', anonymous: false,
-			removed: "Its elevation of 8,849 m was most recently established in 2020 by Chinese and Nepali authorities.",
-			added: "Its elevation of 8,849 m (I think it's actually about 9,000 m now because of the snow) was most recently established in 2020." },
-		{ name: 'Real improvement', title: 'Photosynthesis', anonymous: false, removed: '',
-			added: 'In plants, photosynthesis mainly takes place in the chloroplasts of leaf mesophyll cells.<ref>{{cite book |title=Biology 2e |publisher=OpenStax |year=2018}}</ref>' },
-		{ name: 'Blatant', title: 'Paris', anonymous: true,
-			removed: 'Paris is the capital and largest city of France.', added: 'lol paris sucks' }
+		{ name: 'RAG agents', title: 'Retrieval Budgets for Tool-Using Language Agents',
+			abstract: 'Language agents that call a search tool often retrieve far more documents than they read. We model retrieval as a budgeted decision and train a small policy that decides, at each step, whether another query is worth its cost. On three open-domain question answering benchmarks the policy cuts retrieval calls by 58% with no loss in exact-match accuracy, and transfers to unseen search engines without retraining.' },
+		{ name: '5G intrusion', title: 'A Lightweight Intrusion Detector for 5G Edge Nodes',
+			abstract: 'Edge nodes in 5G networks see traffic patterns that differ sharply from data-centre traffic, and existing intrusion detectors either miss slow attacks or overwhelm operators with false alarms. We present a streaming detector that fits in 40 MB of memory, learns per-cell baselines online, and flags signalling-storm and spoofing attacks within two seconds. In a six-week deployment on a regional operator it reduced false alarms by 71%.' },
+		{ name: 'Robot doors', title: 'Opening Doors by Watching People',
+			abstract: 'We teach a quadruped robot with an arm to open unfamiliar doors using only videos of people doing it. A hand-pose tracker extracts the motion of the handle from each video, and a reinforcement learning policy trained in simulation learns to reproduce it with the robot gripper. The robot opens 83% of 40 real doors it has never seen, including push bars and lever handles.' }
 	];
 
 	type Lane = { engine: 'jev' | 'llm'; label: string; elapsed: number; result: Judgement | null; error: string | null };
@@ -35,7 +30,7 @@
 			for (const l of lanes) if (!l.result && !l.error) l.elapsed = performance.now() - t0;
 			frame = requestAnimationFrame(tick);
 		});
-		const body = JSON.stringify({ title: form.title, removed: form.removed, added: form.added, anonymous: form.anonymous });
+		const body = JSON.stringify({ title: form.title, abstract: form.abstract });
 		await Promise.all(
 			lanes.map(async (lane) => {
 				try {
@@ -43,7 +38,7 @@
 					const data = await r.json();
 					lane.elapsed = performance.now() - t0;
 					if (r.ok) lane.result = data;
-					else lane.error = data.detail?.includes('402') || data.detail?.includes('credit') ? 'Out of API credits' : String(data.detail ?? r.status).slice(0, 80);
+					else lane.error = /402|credit/.test(String(data.detail)) ? 'Out of API credits' : String(data.detail?.[0]?.msg ?? data.detail ?? r.status).slice(0, 80);
 				} catch {
 					lane.error = 'Network error';
 				}
@@ -54,36 +49,26 @@
 	}
 
 	const scale = $derived(Math.max(2000, ...lanes.map((l) => l.elapsed)));
-	const [jev, gem] = $derived([lanes[0]?.result, lanes[1]?.result]);
+	const [jev, llm] = $derived([lanes[0]?.result, lanes[1]?.result]);
+	const top = (j: Judgement) => Object.entries(j.probabilities ?? {}).sort((a, b) => b[1] - a[1]).slice(0, 3);
 </script>
 
 <section class="card p-5">
-	<div class="flex items-baseline justify-between gap-2">
-		<h2 class="text-sm font-semibold whitespace-nowrap">The race</h2>
-		<p class="text-right text-xs text-muted">Same edit, same questions, same instant</p>
-	</div>
-
+	<p class="caption"><b>Submit a paper.</b>Paste any title and abstract. Both models receive it at the same instant.</p>
 	<div class="mt-3 flex flex-wrap gap-1.5">
 		{#each PRESETS as p (p.name)}
 			<button onclick={() => (form = { ...p })}
-				class="rounded-full border px-2.5 py-1 text-xs transition {form.title === p.title ? 'border-jev bg-jev/10 text-jev' : 'border-border text-text-2 hover:border-muted'}">
-				{p.name}
-			</button>
+				class="rounded-full border px-2.5 py-1 text-xs transition {form.title === p.title ? 'border-text bg-text text-surface' : 'border-border text-text-2 hover:border-muted'}">{p.name}</button>
 		{/each}
 	</div>
-
 	<div class="mt-3 grid gap-2 text-sm">
-		<label class="grid gap-1"><span class="text-xs text-muted">Article</span>
-			<input bind:value={form.title} maxlength="300" class="rounded-lg border border-border bg-surface-2 px-3 py-1.5 outline-jev" /></label>
-		<label class="grid gap-1"><span class="text-xs text-muted">Removed text</span>
-			<textarea bind:value={form.removed} maxlength="1500" rows="2" class="resize-none rounded-lg border border-border bg-surface-2 px-3 py-1.5 font-mono text-xs outline-jev"></textarea></label>
-		<label class="grid gap-1"><span class="text-xs text-muted">Added text</span>
-			<textarea bind:value={form.added} maxlength="1500" rows="3" class="resize-none rounded-lg border border-border bg-surface-2 px-3 py-1.5 font-mono text-xs outline-jev"></textarea></label>
-		<label class="flex items-center gap-2 text-xs text-text-2"><input type="checkbox" bind:checked={form.anonymous} class="accent-jev" /> Anonymous editor</label>
+		<label class="grid gap-1"><span class="text-xs text-muted">Title</span>
+			<input bind:value={form.title} maxlength="400" class="rounded-sm border border-border bg-surface-2 px-3 py-1.5 font-serif text-[0.95rem] outline-jev" /></label>
+		<label class="grid gap-1"><span class="text-xs text-muted">Abstract</span>
+			<textarea bind:value={form.abstract} maxlength="4000" rows="5" class="resize-y rounded-sm border border-border bg-surface-2 px-3 py-1.5 font-serif text-[0.85rem] leading-relaxed outline-jev"></textarea></label>
 	</div>
-
 	<button onclick={race} disabled={running}
-		class="mt-3 w-full rounded-lg bg-jev py-2 text-sm font-semibold text-white transition hover:brightness-110 disabled:opacity-60">
+		class="mt-3 w-full rounded-sm bg-text py-2 text-sm font-semibold text-surface transition hover:opacity-90 disabled:opacity-60">
 		{running ? 'Racing…' : 'Race ⚡'}
 	</button>
 
@@ -98,30 +83,27 @@
 					<div class="h-2 overflow-hidden rounded-full bg-surface-2">
 						<div class="h-full rounded-full {lane.error ? 'opacity-30' : ''}" style="width: {(lane.elapsed / scale) * 100}%; background: var(--{lane.engine})"></div>
 					</div>
-					<div class="mt-2 min-h-6">
+					<div class="mt-2 min-h-6 text-xs text-muted">
 						{#if lane.result}
-							<div class="flex flex-wrap items-center gap-2 text-xs text-muted">
-								<VerdictBadge verdict={lane.result.verdict} size="sm" />
-								<span>severity <span class="num">{lane.result.severity.toFixed(1)}</span>/3</span>
-								<span class="num">{usd(lane.result.cost)}</span>
-								<span class="num">{lane.result.tokens_in} in · {lane.result.tokens_out} out</span>
-							</div>
-							{#if lane.result.probabilities}
-								<div class="mt-2"><ProbBar probs={lane.result.probabilities} /></div>
-							{:else}
-								<p class="mt-1 text-[11px] text-muted">One generated answer, no probabilities.</p>
-							{/if}
+							<p><b class="font-mono text-text">{lane.result.category}</b> {CATEGORY_NAMES[lane.result.category] ?? ''} · {lane.result.paper_type}
+								· <span class="num">{usd(lane.result.cost)}</span></p>
+							<p class="num mt-0.5">
+								{#if lane.result.probabilities}
+									{#each top(lane.result) as [c, p], i (c)}{i ? ' · ' : ''}{c} {Math.round(p * 100)}%{/each}
+								{:else}
+									self-reported confidence {Math.round(lane.result.confidence * 100)}%
+								{/if}
+							</p>
 						{:else if lane.error}
-							<p class="text-xs text-warn">⚠ {lane.error}</p>
+							<p class="text-warn">⚠ {lane.error}</p>
 						{/if}
 					</div>
 				</div>
 			{/each}
 		</div>
-		{#if jev && gem}
-			<p class="mt-2 rounded-lg bg-jev/10 px-3 py-2 text-center text-sm text-text">
-				Jev answered <b class="num">{Math.max(1, Math.round(gem.ms / jev.ms))}×</b> faster for
-				<b class="num">{Math.max(1, Math.round(gem.cost / jev.cost))}×</b> less money{gem.verdict === jev.verdict ? ' — same verdict.' : ` — they disagree (${VERDICTS[gem.verdict].label.toLowerCase()}).`}
+		{#if jev && llm}
+			<p class="mt-2 border-t border-border pt-3 font-serif text-[0.95rem]">
+				Jev was <b class="num">{fmtTimes(llm.ms / jev.ms)}</b> faster and <b class="num">{fmtTimes(llm.cost / jev.cost)}</b> cheaper{jev.category === llm.category ? ', same answer.' : `, and they disagree.`}
 			</p>
 		{/if}
 	{/if}

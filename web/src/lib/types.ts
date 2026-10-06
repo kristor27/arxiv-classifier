@@ -1,66 +1,64 @@
-export type Verdict = 'disruptive' | 'good_faith_error' | 'improvement';
-
 export interface Judgement {
 	engine: 'jev' | 'llm';
 	model: string;
-	label?: string; // display name of the comparison LLM, e.g. "Claude Sonnet 5.5"
-	verdict: Verdict;
-	confidence: number | null;
-	probabilities: Record<Verdict, number> | null;
-	kind: string;
-	topic?: string; // missing on edits judged before topics were added
-	severity: number;
+	label: string;
+	category: string;
+	confidence: number; // Jev: calibrated probability; LLM: self-reported, 0–1
+	probabilities: Record<string, number> | null; // Jev only
+	paper_type: string;
 	ms: number;
 	tokens_in: number;
 	tokens_out: number;
 	cost: number;
 }
 
-export interface Edit {
-	rev: number;
-	wiki: string;
-	title: string;
+export interface Paper {
+	id: string;
 	url: string;
-	editor: string;
-	anonymous: boolean;
-	comment: string;
-	byte_delta: number;
-	removed: string;
-	added: string;
-	context: string;
+	title: string;
+	abstract: string;
+	authors: string;
+	primary_category: string; // ground truth
+	categories: string[];
+	published: string;
 	created_at: string;
 	jev: Judgement;
 	llm: Judgement | null;
-	reverted: boolean | null;
-	checked_at: string | null;
 }
 
+export type Curve = { threshold: number; coverage: number; accuracy: number | null }[];
+export type Calibration = { confidence: number; accuracy: number; n: number }[];
+
 export interface Stats {
+	n: number; // papers both judges answered
 	total: number;
-	disruptive: number;
-	good_faith_error: number;
-	improvement: number;
-	jev_cost: number;
-	jev_cost_per_edit: number;
-	jev_p50_ms: number | null;
-	llm_n: number;
-	llm_cost: number;
-	llm_cost_per_edit: number | null;
-	llm_p50_ms: number | null;
+	with_llm: number;
+	jev_accuracy: number | null;
+	llm_accuracy: number | null;
+	jev_lenient: number | null;
+	llm_lenient: number | null;
 	agreement: number | null;
-	checked: number;
-	reverted: number;
-	caught: number;
-	flagged_checked: number;
-	flagged_reverted: number;
-	all_wikimedia_edits_per_s: number;
-	llm_cost_if_all: number | null;
-	jev_cost_per_year_all_wikimedia: number;
-	llm_cost_per_year_all_wikimedia: number | null;
-	pulse: { t: number; verdict: Verdict; n: number }[];
+	jev_p50_ms: number | null;
+	jev_p95_ms: number | null;
+	llm_p50_ms: number | null;
+	llm_p95_ms: number | null;
+	jev_cost_per_paper: number | null;
+	llm_cost_per_paper: number | null;
+	jev_tokens_in: number | null;
+	llm_tokens_in: number | null;
+	llm_tokens_out: number | null;
+	jev_spent: number;
+	llm_spent: number;
+	per_category: { category: string; n: number; jev: number; llm: number }[];
+	confusions: Record<'jev' | 'llm', { truth: string; predicted: string; n: number }[]>;
+	jev_coverage: Curve;
+	llm_coverage: Curve;
+	jev_calibration: Calibration;
+	llm_calibration: Calibration;
 	latency: { jev: number[]; llm: number[] };
-	engines: { jev: string; llm: string | null };
 	paused: boolean;
-	topics: { topic: string; n: number; disruptive: number }[];
-	topic_names: string[];
+	categories: Record<string, string>;
+	engines: { jev: string; llm: string | null };
 }
+
+export type Only = 'jev_wrong' | 'llm_wrong' | 'disagree';

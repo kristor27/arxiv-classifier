@@ -9,13 +9,13 @@ import redis.asyncio as redis
 from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel, Field
 
-from wikipulse import db
-from wikipulse.config import settings
-from wikipulse.ingestor import PAUSED
-from wikipulse.judges import TOPICS, JevJudge, llm_judge
+from arxiv_classifier import db
+from arxiv_classifier.arxiv import CATEGORIES
+from arxiv_classifier.config import settings
+from arxiv_classifier.ingestor import PAUSED
+from arxiv_classifier.judges import JevJudge, llm_judge
 
 log = logging.getLogger("api")
-SECONDS_PER_YEAR = 365 * 24 * 3600
 clients: set[WebSocket] = set()
 
 
@@ -44,7 +44,7 @@ async def lifespan(app: FastAPI):
     await app.state.pool.close()
 
 
-app = FastAPI(title="WikiPulse", description="An immune system for Wikipedia, powered by Jev.",
+app = FastAPI(title="arXiv Classifier", description="Jev vs a generative LLM, sorting new arXiv papers.",
               lifespan=lifespan, docs_url="/api/docs", openapi_url="/api/openapi.json")
 
 
@@ -55,32 +55,25 @@ async def health():
     return {"ok": True}
 
 
-@app.get("/api/edits")
-async def edits(limit: int = Query(50, le=200),
-                verdict: Literal["disruptive", "good_faith_error", "improvement"] | None = None,
-                topic: str | None = Query(None, max_length=30)):
-    return await db.recent(app.state.pool, limit, verdict, topic)
+@app.get("/api/papers")
+async def papers(limit: int = Query(40, le=200),
+                 category: Literal[tuple(CATEGORIES)] | None = None,
+                 only: Literal["jev_wrong", "llm_wrong", "disagree"] | None = None):
+    return await db.recent(app.state.pool, limit, category, only)
 
 
-@app.get("/api/edits/{rev}")
-async def edit(rev: int):
-    if row := await db.get(app.state.pool, rev):
+@app.get("/api/papers/{paper_id}")
+async def paper(paper_id: str):
+    if row := await db.get(app.state.pool, paper_id):
         return row
-    raise HTTPException(404, "edit not found")
+    raise HTTPException(404, "paper not found")
 
 
 @app.get("/api/stats")
 async def stats():
     s = await db.stats(app.state.pool)
-    rate = float(await app.state.redis.get("rate:all_edits_per_s") or 0)
-    llm_per_edit = s["llm_cost_per_edit"]
-    s["all_wikimedia_edits_per_s"] = rate
-    # What it would cost to judge every edit we judged — and every edit on all of Wikimedia for a year.
-    s["llm_cost_if_all"] = llm_per_edit * s["total"] if llm_per_edit else None
-    s["jev_cost_per_year_all_wikimedia"] = s["jev_cost_per_edit"] * rate * SECONDS_PER_YEAR
-    s["llm_cost_per_year_all_wikimedia"] = llm_per_edit * rate * SECONDS_PER_YEAR if llm_per_edit else None
     s["paused"] = bool(await app.state.redis.exists(PAUSED))
-    s["topic_names"] = list(TOPICS)
+    s["categories"] = CATEGORIES
     llm = app.state.judges.get("llm")
     s["engines"] = {"jev": settings.jev_model, "llm": llm.label if llm else None}
     return s
@@ -92,7 +85,7 @@ class PipelineIn(BaseModel):
 
 @app.post("/api/pipeline")
 async def pipeline(body: PipelineIn):
-    """Stop or resume judging. The stream keeps being read; edits are just not sent to the judges."""
+    """Stop or resume judging: the ingestor stops polling, so nothing new reaches the judges."""
     # ponytail: no auth — anyone who can open the dashboard can toggle this; add auth before exposing it publicly
     if body.paused:
         await app.state.redis.set(PAUSED, 1)
@@ -101,23 +94,19 @@ async def pipeline(body: PipelineIn):
     return {"paused": body.paused}
 
 
-class EditIn(BaseModel):
-    title: str = Field(max_length=300)
-    comment: str = Field("", max_length=500)
-    removed: str = Field("", max_length=1500)
-    added: str = Field("", max_length=1500)
-    anonymous: bool = True
+class PaperIn(BaseModel):
+    title: str = Field(min_length=3, max_length=400)
+    abstract: str = Field(min_length=20, max_length=4000)
 
 
 @app.post("/api/judge/{engine}")
-async def judge(engine: Literal["jev", "llm"], body: EditIn):
-    """The playground: judge a made-up edit. The dashboard calls both engines at once to race them."""
+async def judge(engine: Literal["jev", "llm"], body: PaperIn):
+    """The playground: classify any title + abstract. The dashboard calls both engines at once to race them."""
     judge = app.state.judges.get(engine)
     if not judge:
         raise HTTPException(503, f"{engine} is not configured")
-    edit = body.model_dump() | {"context": "", "byte_delta": len(body.added) - len(body.removed)}
     try:
-        return await judge.judge(edit)
+        return await judge.judge(body.model_dump())
     except Exception as e:
         log.warning("%s judge failed: %s", engine, e)
         raise HTTPException(502, f"{engine} failed: {str(e)[:200]}")

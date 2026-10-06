@@ -12,7 +12,7 @@ spec:
     spec:
       containers:
         - name: web
-          image: wikipulse-web
+          image: arxiv-classifier-web
           imagePullPolicy: IfNotPresent
           ports: [{ containerPort: 80 }]
           readinessProbe:

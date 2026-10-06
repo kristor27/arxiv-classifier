@@ -1,52 +1,64 @@
 @import 'tailwindcss';
-@import '@fontsource-variable/inter';
+@import '@fontsource-variable/newsreader';
+@import '@fontsource-variable/instrument-sans';
 @import '@fontsource-variable/jetbrains-mono';
 
-/* Design tokens. Colors come from a colorblind-validated palette:
-   Jev / comparison LLM = categorical slots 1-2, verdicts = status colors (always shown with an icon + label). */
+/* Concept: the dashboard is typeset like the papers it evaluates — a title that asks the question, a live abstract,
+   Table 1 with booktabs rules and the best result in bold, captioned figures, and an arXiv-style listing with each
+   model's verdict as a reviewer's note in the margin.
+   Colour: Jev / comparison LLM = validated categorical slots 1-2; right / wrong = status colours, always with ✓ / ✕. */
 :root {
 	color-scheme: light;
-	--bg: #f4f4f1;
-	--surface: #fcfcfb;
-	--surface-2: #efeeea;
-	--border: #e2e1dc;
-	--text: #0b0b0b;
-	--text-2: #52514e;
-	--muted: #86857f;
+	--bg: #eceef2;          /* the desk */
+	--surface: #fcfcfd;     /* the sheet of paper */
+	--surface-2: #f1f3f6;
+	--border: #dcdfe5;
+	--rule: #16181d;        /* booktabs rules */
+	--text: #14161b;
+	--text-2: #4a505c;
+	--muted: #757b8a;
 	--jev: #2a78d6;
 	--llm: #eb6834;
-	--good: #0ca30c;
-	--warn: #fab219;
-	--crit: #d03b3b;
-	--glow: 0 0 0 1px var(--border), 0 1px 2px rgb(0 0 0 / 0.04);
+	--good: #0b8f0b;
+	--warn: #b37600;
+	--crit: #c93636;
+	--glow: 0 1px 0 rgb(20 22 27 / 0.04), 0 12px 32px -18px rgb(20 22 27 / 0.18);
 }
 @media (prefers-color-scheme: dark) {
 	:root:not([data-theme='light']) {
 		color-scheme: dark;
-		--bg: #0e0e0d;
-		--surface: #1a1a19;
-		--surface-2: #232321;
-		--border: #2d2d2a;
-		--text: #ffffff;
-		--text-2: #c3c2b7;
-		--muted: #8b8a82;
+		--bg: #0b0d11;
+		--surface: #13161c;
+		--surface-2: #1a1e26;
+		--border: #262b35;
+		--rule: #c9ced8;
+		--text: #eceef3;
+		--text-2: #b0b6c2;
+		--muted: #7f8696;
 		--jev: #3987e5;
 		--llm: #d95926;
-		--glow: 0 0 0 1px var(--border), 0 8px 24px rgb(0 0 0 / 0.25);
+		--good: #3dbb3d;
+		--warn: #e0a526;
+		--crit: #ec6a6a;
+		--glow: 0 1px 0 rgb(0 0 0 / 0.3), 0 16px 40px -20px rgb(0 0 0 / 0.6);
 	}
 }
 :root[data-theme='dark'] {
 	color-scheme: dark;
-	--bg: #0e0e0d;
-	--surface: #1a1a19;
-	--surface-2: #232321;
-	--border: #2d2d2a;
-	--text: #ffffff;
-	--text-2: #c3c2b7;
-	--muted: #8b8a82;
+	--bg: #0b0d11;
+	--surface: #13161c;
+	--surface-2: #1a1e26;
+	--border: #262b35;
+	--rule: #c9ced8;
+	--text: #eceef3;
+	--text-2: #b0b6c2;
+	--muted: #7f8696;
 	--jev: #3987e5;
 	--llm: #d95926;
-	--glow: 0 0 0 1px var(--border), 0 8px 24px rgb(0 0 0 / 0.25);
+	--good: #3dbb3d;
+	--warn: #e0a526;
+	--crit: #ec6a6a;
+	--glow: 0 1px 0 rgb(0 0 0 / 0.3), 0 16px 40px -20px rgb(0 0 0 / 0.6);
 }
 
 @theme inline {
@@ -54,6 +66,7 @@
 	--color-surface: var(--surface);
 	--color-surface-2: var(--surface-2);
 	--color-border: var(--border);
+	--color-rule: var(--rule);
 	--color-text: var(--text);
 	--color-text-2: var(--text-2);
 	--color-muted: var(--muted);
@@ -62,7 +75,8 @@
 	--color-good: var(--good);
 	--color-warn: var(--warn);
 	--color-crit: var(--crit);
-	--font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+	--font-serif: 'Newsreader Variable', 'Iowan Old Style', Georgia, serif;
+	--font-sans: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif;
 	--font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
 }
 
@@ -73,14 +87,36 @@ body {
 	-webkit-font-smoothing: antialiased;
 }
 
+/* A sheet of paper: hairline edge, barely rounded, soft lift. */
 .card {
 	background: var(--surface);
-	border-radius: 14px;
+	border: 1px solid var(--border);
+	border-radius: 3px;
 	box-shadow: var(--glow);
 }
-.num {
-	font-variant-numeric: tabular-nums;
+.num { font-variant-numeric: tabular-nums lining-nums; }
+
+/* Section heads in the paper's own style: "2  Live submissions" */
+.section-head {
+	display: flex;
+	align-items: baseline;
+	gap: 0.75rem;
+	font-family: var(--font-serif);
+	font-size: 1.45rem;
+	font-weight: 500;
+	letter-spacing: -0.01em;
+	text-wrap: balance;
 }
+.section-head .n { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Captions: "Table 1." / "Figure 3." in small caps, then the sentence. */
+.caption { font-family: var(--font-serif); font-size: 0.86rem; line-height: 1.45; color: var(--text-2); }
+.caption b { font-variant-caps: all-small-caps; letter-spacing: 0.04em; font-weight: 600; color: var(--text); margin-right: 0.25em; }
+
+/* Booktabs: heavy top and bottom rules, a light rule under the header, no vertical lines. */
+.booktabs { border-top: 1.5px solid var(--rule); border-bottom: 1.5px solid var(--rule); }
+.booktabs thead tr { border-bottom: 0.75px solid var(--rule); }
+
 @media (prefers-reduced-motion: reduce) {
 	*, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }

@@ -1,16 +1,16 @@
-import type { Edit, Stats, Verdict } from './types';
+import type { Only, Paper, Stats } from './types';
 
 const MAX_FEED = 60;
 
 /** The live state of the dashboard: a WebSocket for new verdicts, and stats polled every few seconds. */
 class Live {
-	edits = $state<Edit[]>([]);
-	queued = $state<Edit[]>([]);
+	papers = $state<Paper[]>([]);
+	queued = $state<Paper[]>([]);
 	stats = $state<Stats | null>(null);
 	connected = $state(false);
 	frozen = $state(false);
-	filter = $state<{ verdict: Verdict | null; topic: string | null }>({ verdict: null, topic: null });
-	arrivals = $state<{ id: number; verdict: string }[]>([]);
+	filter = $state<{ category: string | null; only: Only | null }>({ category: null, only: null });
+	arrivals = $state<{ id: string; ok: boolean }[]>([]);
 	now = $state(Date.now());
 
 	start() {
@@ -21,7 +21,7 @@ class Live {
 		return () => timers.forEach(clearInterval);
 	}
 
-	/** Filters run on the server, so a rare topic still fills the feed with its history. */
+	/** Filters run on the server, so the feed fills with history that matches, not just new arrivals. */
 	setFilter(f: Partial<typeof this.filter>) {
 		this.filter = { ...this.filter, ...f };
 		this.queued = [];
@@ -30,18 +30,22 @@ class Live {
 
 	private async load() {
 		const q = new URLSearchParams({ limit: '40' });
-		if (this.filter.verdict) q.set('verdict', this.filter.verdict);
-		if (this.filter.topic) q.set('topic', this.filter.topic);
+		if (this.filter.category) q.set('category', this.filter.category);
+		if (this.filter.only) q.set('only', this.filter.only);
 		try {
-			this.edits = await (await fetch(`/api/edits?${q}`)).json();
+			this.papers = await (await fetch(`/api/papers?${q}`)).json();
 		} catch {
 			/* API restarting */
 		}
 	}
 
-	private matches(e: Edit) {
-		const { verdict, topic } = this.filter;
-		return (!verdict || e.jev.verdict === verdict) && (!topic || e.jev.topic === topic);
+	private matches(p: Paper) {
+		const { category, only } = this.filter;
+		if (category && p.primary_category !== category) return false;
+		if (only === 'jev_wrong') return p.jev.category !== p.primary_category;
+		if (only === 'llm_wrong') return !!p.llm && p.llm.category !== p.primary_category;
+		if (only === 'disagree') return !!p.llm && p.llm.category !== p.jev.category;
+		return true;
 	}
 
 	private connect() {
@@ -54,23 +58,23 @@ class Live {
 		ws.onmessage = (m) => this.receive(JSON.parse(m.data));
 	}
 
-	private receive(edit: Edit) {
-		// One travelling dot per edit in the pipeline diagram, filtered or not.
-		this.arrivals = [...this.arrivals.slice(-12), { id: edit.rev, verdict: edit.jev.verdict }];
-		if (!this.matches(edit)) return;
-		if (this.frozen) this.queued = [edit, ...this.queued].slice(0, MAX_FEED);
-		else this.edits = [edit, ...this.edits].slice(0, MAX_FEED);
+	private receive(p: Paper) {
+		// One travelling dot per paper in the pipeline diagram, green if Jev got it right.
+		this.arrivals = [...this.arrivals.slice(-12), { id: p.id, ok: p.jev.category === p.primary_category }];
+		if (!this.matches(p)) return;
+		if (this.frozen) this.queued = [p, ...this.queued].slice(0, MAX_FEED);
+		else this.papers = [p, ...this.papers].slice(0, MAX_FEED);
 	}
 
 	toggleFreeze() {
 		this.frozen = !this.frozen;
 		if (!this.frozen) {
-			this.edits = [...this.queued, ...this.edits].slice(0, MAX_FEED);
+			this.papers = [...this.queued, ...this.papers].slice(0, MAX_FEED);
 			this.queued = [];
 		}
 	}
 
-	/** Stop or resume sending edits to the judges — this is what stops the API bill. */
+	/** Stop or resume judging new papers — this is what stops the API bill. */
 	async setPaused(paused: boolean) {
 		await fetch('/api/pipeline', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ paused }) });
 		if (this.stats) this.stats.paused = paused;

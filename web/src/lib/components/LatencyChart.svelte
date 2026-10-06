@@ -17,11 +17,8 @@
 	let hover = $state<string | null>(null);
 </script>
 
-<section class="card p-5">
-	<div class="flex items-baseline justify-between">
-		<h2 class="text-sm font-semibold">Response time</h2>
-		<span class="text-xs text-muted">every call · log scale</span>
-	</div>
+<figure class="card p-5">
+	<figcaption class="caption"><b>Figure 5.</b>Response time of every call, one dot each, on a log scale. The bar marks the median.</figcaption>
 	<svg viewBox="0 0 {W} {ROW * 2 + 18}" class="mt-3 w-full overflow-visible" role="img"
 		aria-label="Response times: Jev median {ms(median(rows[0].data))}, {rows[1].label} median {ms(median(rows[1].data))}">
 		{#each TICKS as t (t)}
@@ -50,4 +47,4 @@
 			{r.label}: {r.data.length} calls · median {ms(median(r.data))} · slowest {ms(Math.max(0, ...r.data) || null)}
 		{/if}
 	</p>
-</section>
+</figure>

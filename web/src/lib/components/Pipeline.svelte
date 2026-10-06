@@ -1,26 +1,23 @@
 <script lang="ts">
-	import { int, ms, VERDICTS } from '$lib/format';
+	import { int } from '$lib/format';
 	import { live } from '$lib/live.svelte';
-	import type { Verdict } from '$lib/types';
 
-	// How the system works, animated: every real edit is a dot that changes color once Jev has judged it.
+	// How the system works, animated: every judged paper is a dot that turns green or red when it passes the judges.
 	const s = $derived(live.stats);
 	const nodes = $derived([
-		{ name: 'Wikipedia', sub: s ? `${s.all_wikimedia_edits_per_s.toFixed(1)} edits/s worldwide` : 'live stream' },
-		{ name: 'Redis queue', sub: 'buffers the burst' },
-		{ name: 'Jev', sub: s?.paused ? 'stopped' : s?.jev_p50_ms ? `${ms(s.jev_p50_ms)} per verdict` : 'judges', hero: !s?.paused },
-		{ name: 'Postgres', sub: s ? `${int(s.total)} verdicts` : 'stores' },
+		{ name: 'arXiv', sub: 'new papers, polled' },
+		{ name: 'Redis queue', sub: 'one paper per job' },
+		{ name: `Jev + ${s?.engines.llm?.replace('Claude ', '') ?? 'LLM'}`, sub: s?.paused ? 'stopped' : 'judged at the same instant', hero: !s?.paused },
+		{ name: 'Postgres', sub: s ? `${int(s.total)} papers scored` : 'scores' },
 		{ name: 'You', sub: live.connected ? 'live over WebSocket' : 'reconnecting…' }
 	]);
 </script>
 
-<section class="card px-5 pt-4 pb-5" aria-label="How WikiPulse works">
-	<p class="mb-4 text-xs font-medium tracking-wide text-muted uppercase">How it works · every dot is a real edit</p>
+<figure class="card px-5 pt-5 pb-4" aria-label="How it works">
 	<div class="relative">
 		<div class="absolute top-[11px] right-[10%] left-[10%] h-[2px] bg-border"></div>
 		{#each live.arrivals as a (a.id)}
-			<span class="dot absolute top-[7px] size-2.5 rounded-full"
-				style="--c: {VERDICTS[a.verdict as Verdict].color}"></span>
+			<span class="dot absolute top-[7px] size-2.5 rounded-full" style="--c: {a.ok ? 'var(--good)' : 'var(--crit)'}"></span>
 		{/each}
 		<ol class="relative grid grid-cols-5">
 			{#each nodes as n (n.name)}
@@ -35,15 +32,12 @@
 			{/each}
 		</ol>
 	</div>
-</section>
+	<figcaption class="caption mt-4"><b>Figure 1.</b>Method. Every dot is a real paper travelling through the system; it turns green when Jev picks the right category and red when it doesn't.</figcaption>
+</figure>
 
 <style>
-	.dot {
-		left: 10%;
-		background: var(--muted);
-		animation: travel 2.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-	}
-	/* Gray until it reaches Jev (the middle node), then it takes the verdict's color. */
+	.dot { left: 10%; background: var(--muted); animation: travel 2.4s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
+	/* Grey until it reaches the judges (the middle node), then green (Jev right) or red (Jev wrong). */
 	@keyframes travel {
 		0% { left: 10%; opacity: 0; background: var(--muted); }
 		8% { opacity: 1; }

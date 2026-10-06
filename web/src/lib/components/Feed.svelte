@@ -1,64 +1,57 @@
 <script lang="ts">
-	import { ORDER, TOPICS, VERDICTS } from '$lib/format';
+	import { CATEGORY_NAMES } from '$lib/format';
 	import { live } from '$lib/live.svelte';
-	import EditCard from './EditCard.svelte';
+	import type { Only } from '$lib/types';
+	import PaperCard from './PaperCard.svelte';
 
-	const topics = $derived(
-		(live.stats?.topic_names ?? Object.keys(TOPICS)).map((t) => {
-			const row = live.stats?.topics.find((r) => r.topic === t);
-			return { key: t, n: row?.n ?? 0, disruptive: row?.disruptive ?? 0 };
-		})
-	);
+	const llmName = $derived(live.stats?.engines.llm ?? 'LLM');
+	const views = $derived<{ key: Only | null; label: string }[]>([
+		{ key: null, label: 'All' },
+		{ key: 'jev_wrong', label: 'Jev wrong' },
+		{ key: 'llm_wrong', label: `${llmName.replace('Claude ', '')} wrong` },
+		{ key: 'disagree', label: 'They disagree' }
+	]);
+	const counts = $derived(Object.fromEntries((live.stats?.per_category ?? []).map((c) => [c.category, c.n])));
 	const chip = 'shrink-0 rounded-full border px-2.5 py-1 text-xs transition';
-	const on = 'border-jev bg-jev/10 text-jev';
-	const off = 'border-border text-text-2 hover:border-muted';
 </script>
 
 <section class="flex min-h-0 flex-col">
 	<div class="mb-3 flex flex-wrap items-center gap-2">
-		<h2 class="mr-auto text-sm font-semibold">Live feed <span class="font-normal text-muted">· English Wikipedia</span></h2>
-		<div class="flex rounded-lg bg-surface p-0.5 text-xs shadow-[var(--glow)]" role="tablist">
-			{#each [null, ...ORDER] as v (v)}
-				<button role="tab" aria-selected={live.filter.verdict === v} onclick={() => live.setFilter({ verdict: v })}
-					class="rounded-md px-2.5 py-1 transition {live.filter.verdict === v ? 'bg-surface-2 font-medium text-text' : 'text-muted hover:text-text'}">
-					{v ? VERDICTS[v].label : 'All'}
-				</button>
+		<div class="mr-auto flex gap-4 border-b border-border text-sm" role="tablist">
+			{#each views as v (v.key)}
+				<button role="tab" aria-selected={live.filter.only === v.key} onclick={() => live.setFilter({ only: v.key })}
+					class="-mb-px border-b-2 pb-1.5 transition {live.filter.only === v.key ? 'border-text font-medium text-text' : 'border-transparent text-muted hover:text-text'}">{v.label}</button>
 			{/each}
 		</div>
-		<button onclick={() => live.toggleFreeze()} title="Freeze the list while you read; edits are still judged"
-			class="rounded-lg bg-surface px-3 py-1.5 text-xs font-medium shadow-[var(--glow)] hover:bg-surface-2">
+		<button onclick={() => live.toggleFreeze()} title="Freeze the list while you read; papers are still judged"
+			class="rounded-full border border-border bg-surface px-3 py-1 text-xs font-medium hover:border-muted">
 			{live.frozen ? `▶ Unfreeze${live.queued.length ? ` (${live.queued.length} new)` : ''}` : '❚❚ Freeze'}
 		</button>
 	</div>
 
-	<!-- Topic filter: Jev answers "what is this article about?" in the same call as the verdict. -->
-	<div class="mb-3 flex gap-1.5 overflow-x-auto pb-1" role="tablist" aria-label="Filter by topic">
-		<button role="tab" aria-selected={!live.filter.topic} onclick={() => live.setFilter({ topic: null })}
-			class="{chip} {!live.filter.topic ? on : off}">All topics</button>
-		{#each topics as t (t.key)}
-			<button role="tab" aria-selected={live.filter.topic === t.key} onclick={() => live.setFilter({ topic: t.key })}
-				class="{chip} {live.filter.topic === t.key ? on : off}"
-				title="{t.n} edits, {t.disruptive} disruptive">
-				{TOPICS[t.key] ?? t.key}
-				<span class="num ml-1 text-muted">{t.n}</span>
-				{#if t.disruptive}<span class="num ml-1 text-crit">{Math.round((t.disruptive / t.n) * 100)}%✕</span>{/if}
+	<div class="mb-3 flex gap-1.5 overflow-x-auto pb-1" role="tablist" aria-label="Filter by the paper's true category">
+		<button role="tab" aria-selected={!live.filter.category} onclick={() => live.setFilter({ category: null })}
+			class="{chip} {!live.filter.category ? 'border-text bg-text text-surface' : 'border-border text-text-2 hover:border-muted'}">All</button>
+		{#each Object.keys(CATEGORY_NAMES) as c (c)}
+			<button role="tab" aria-selected={live.filter.category === c} onclick={() => live.setFilter({ category: c })} title={CATEGORY_NAMES[c]}
+				class="{chip} font-mono {live.filter.category === c ? 'border-text bg-text text-surface' : 'border-border text-text-2 hover:border-muted'}">
+				{c}<span class="num ml-1 font-sans text-muted">{counts[c] ?? 0}</span>
 			</button>
 		{/each}
 	</div>
 
 	<div class="grid gap-3">
-		{#each live.edits as edit (edit.rev)}
-			<div class="enter"><EditCard {edit} /></div>
+		{#each live.papers as paper (paper.id)}
+			<div class="enter"><PaperCard {paper} /></div>
 		{:else}
-			<p class="card p-8 text-center text-sm text-muted">
-				{live.stats?.paused ? 'Judging is stopped. Press “Resume judging” at the top.' : 'Waiting for the next matching edit…'}
+			<p class="card p-8 text-center font-serif text-text-2">
+				No papers yet. Run <code class="font-mono">make benchmark N=200</code> to race both models on the latest arXiv papers.
 			</p>
 		{/each}
 	</div>
 </section>
 
 <style>
-	/* Plays once when a card is mounted, i.e. when a new edit arrives. */
 	.enter { animation: enter 0.45s cubic-bezier(0.2, 0.8, 0.2, 1); }
 	@keyframes enter {
 		from { opacity: 0; transform: translateY(-10px) scale(0.99); }

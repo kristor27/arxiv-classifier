@@ -3,7 +3,7 @@
 ## One image, many services
 
 `ingestor`, `worker`, `reverts` and `api` are the same Python code started with different
-commands, so they share **one image** (`wikipulse:latest`) and Compose or Kubernetes picks the
+commands, so they share **one image** (`arxiv-classifier:latest`) and Compose or Kubernetes picks the
 command. That means one build, one thing to scan, and one version running everywhere.
 
 Things to notice in `Dockerfile`:

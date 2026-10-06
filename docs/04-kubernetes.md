@@ -35,7 +35,7 @@ make k8s-deploy        # build images, create the key Secret from .env, apply, w
 make k8s-status
 make k8s-open          # http://localhost:8081
 make k8s-scale N=5     # watch the new pods join the Redis consumer group
-kubectl -n wikipulse delete pod -l app=worker   # kill workers; Kubernetes replaces them, XAUTOCLAIM recovers their edits
+kubectl -n arxiv-classifier delete pod -l app=worker   # kill workers; Kubernetes replaces them, XAUTOCLAIM recovers their edits
 ```
 
 OrbStack's Kubernetes uses your local Docker images directly, which is why the manifests set
@@ -51,12 +51,12 @@ curl -sfL https://get.k3s.io | sh -                  # install
 sudo cat /etc/rancher/k3s/k3s.yaml                   # kubeconfig: copy to your laptop, set server: to the server's IP
 
 # Get the images onto the server. Either push them to a registry and set `images:` in kustomization.yaml…
-docker tag wikipulse:latest ghcr.io/<you>/wikipulse:latest && docker push ghcr.io/<you>/wikipulse:latest
+docker tag arxiv-classifier:latest ghcr.io/<you>/arxiv-classifier:latest && docker push ghcr.io/<you>/arxiv-classifier:latest
 # …or copy them directly:
-docker save wikipulse:latest wikipulse-web:latest | ssh server sudo k3s ctr images import -
+docker save arxiv-classifier:latest arxiv-classifier-web:latest | ssh server sudo k3s ctr images import -
 
 make k8s-secrets && kubectl apply -k deploy/k8s
 ```
 
-Point a DNS name (or `/etc/hosts` for `wikipulse.local`) at the server and Traefik routes it to
+Point a DNS name (or `/etc/hosts` for `arxiv-classifier.local`) at the server and Traefik routes it to
 the `web` Service. To add HTTPS, install cert-manager and add a `tls:` section to the Ingress.

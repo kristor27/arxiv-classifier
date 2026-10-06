@@ -1,11 +1,13 @@
 # Local "production-like" stack:  docker compose up --build   →  http://localhost:8080
+name: arxiv-classifier
+
 x-app: &app
-  image: wikipulse:latest   # one image for all Python services, built once
+  image: arxiv-classifier:latest   # one image for all Python services, built once
   build: .
   env_file: .env   # API keys (never baked into the image)
   environment:
     REDIS_URL: redis://redis:6379/0
-    DATABASE_URL: postgresql://wikipulse:wikipulse@postgres:5432/wikipulse
+    DATABASE_URL: postgresql://arxiv:arxiv@postgres:5432/arxiv
   depends_on:
     postgres: { condition: service_healthy }
     redis: { condition: service_healthy }
@@ -14,10 +16,10 @@ x-app: &app
 services:
   postgres:
     image: postgres:17-alpine
-    environment: { POSTGRES_USER: wikipulse, POSTGRES_PASSWORD: wikipulse, POSTGRES_DB: wikipulse }
+    environment: { POSTGRES_USER: arxiv, POSTGRES_PASSWORD: arxiv, POSTGRES_DB: arxiv }
     volumes: [pgdata:/var/lib/postgresql/data]
     ports: ["5433:5432"]  # 5433 on the host: 5432 is often taken by a local Postgres
-    healthcheck: { test: pg_isready -U wikipulse, interval: 2s, retries: 20 }
+    healthcheck: { test: pg_isready -U arxiv, interval: 2s, retries: 20 }
 
   redis:
     image: redis:7-alpine
@@ -26,23 +28,19 @@ services:
 
   ingestor:
     <<: *app
-    command: python -m wikipulse.ingestor
+    command: python -m arxiv_classifier.ingestor
 
   worker:
     <<: *app
-    command: python -m wikipulse.worker
+    command: python -m arxiv_classifier.worker
     deploy: { replicas: 2 }
-
-  reverts:  # in Kubernetes this is a CronJob; here a simple loop
-    <<: *app
-    command: sh -c "while true; do python -m wikipulse.reverts; sleep 300; done"
 
   api:
     <<: *app
     healthcheck: { test: "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health')\"", interval: 5s }
 
   web:
-    image: wikipulse-web:latest
+    image: arxiv-classifier-web:latest
     build: ./web
     ports: ["8080:80"]
     depends_on: [api]

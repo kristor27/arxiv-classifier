@@ -14,17 +14,17 @@ spec:
     spec:
       containers:
         - name: ingestor
-          image: wikipulse
+          image: arxiv-classifier
           imagePullPolicy: IfNotPresent
-          command: [python, -m, wikipulse.ingestor]
+          command: [python, -m, arxiv_classifier.ingestor]
           envFrom:
-            - configMapRef: { name: wikipulse-config }
-            - secretRef: { name: wikipulse-keys }   # API keys: make k8s-secrets (from your .env)
+            - configMapRef: { name: arxiv-classifier-config }
+            - secretRef: { name: arxiv-classifier-keys }   # API keys: make k8s-secrets (from your .env)
           env:
             - name: POSTGRES_PASSWORD
               valueFrom: { secretKeyRef: { name: postgres, key: POSTGRES_PASSWORD } }
             - name: DATABASE_URL   # $(VAR) is expanded by Kubernetes from the variable above
-              value: postgresql://wikipulse:$(POSTGRES_PASSWORD)@postgres:5432/wikipulse
+              value: postgresql://arxiv:$(POSTGRES_PASSWORD)@postgres:5432/arxiv
           securityContext: { runAsNonRoot: true, allowPrivilegeEscalation: false }
           resources:
             requests: { cpu: 50m, memory: 96Mi }

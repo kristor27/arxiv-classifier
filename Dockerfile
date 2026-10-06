@@ -9,8 +9,8 @@ ENV UV_COMPILE_BYTECODE=1 UV_LINK_MODE=copy PATH=/app/.venv/bin:$PATH PYTHONUNBU
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev --no-install-project
 
-COPY wikipulse ./wikipulse
+COPY arxiv_classifier ./arxiv_classifier
 # Run as "nobody". Numeric, so Kubernetes can verify runAsNonRoot.
 USER 65534
 EXPOSE 8000
-CMD ["uvicorn", "wikipulse.api:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "arxiv_classifier.api:app", "--host", "0.0.0.0", "--port", "8000"]

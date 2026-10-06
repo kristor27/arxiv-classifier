@@ -16,14 +16,14 @@ spec:
         - name: postgres
           image: postgres:17-alpine
           env:
-            - { name: POSTGRES_USER, value: wikipulse }
-            - { name: POSTGRES_DB, value: wikipulse }
+            - { name: POSTGRES_USER, value: arxiv }
+            - { name: POSTGRES_DB, value: arxiv }
             - { name: PGDATA, value: /var/lib/postgresql/data/pgdata }
             - name: POSTGRES_PASSWORD
               valueFrom: { secretKeyRef: { name: postgres, key: POSTGRES_PASSWORD } }
           ports: [{ containerPort: 5432 }]
           readinessProbe:
-            exec: { command: [pg_isready, -U, wikipulse] }
+            exec: { command: [pg_isready, -U, arxiv] }
             periodSeconds: 5
           resources:
             requests: { cpu: 100m, memory: 256Mi }

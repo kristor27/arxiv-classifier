@@ -7,8 +7,8 @@
 
 <svelte:head>
 	<link rel="icon" href={favicon} />
-	<title>WikiPulse — an immune system for Wikipedia</title>
-	<meta name="description" content="Every English Wikipedia edit, judged live by Jev." />
+	<title>Jev vs LLM on arXiv</title>
+	<meta name="description" content="A live evaluation: Jev against a generative LLM, sorting new arXiv papers." />
 </svelte:head>
 
 {@render children()}

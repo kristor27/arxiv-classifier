@@ -1,5 +1,5 @@
 [project]
-name = "wikipulse"
+name = "arxiv-classifier"
 version = "0.1.0"
 description = "An immune system for Wikipedia: every edit judged live by Jev."
 readme = "README.md"

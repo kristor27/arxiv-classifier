@@ -1,4 +1,4 @@
-# Stateless and horizontally scalable:  kubectl -n wikipulse scale deploy/worker --replicas=5
+# Stateless and horizontally scalable:  kubectl -n arxiv-classifier scale deploy/worker --replicas=5
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -13,17 +13,17 @@ spec:
     spec:
       containers:
         - name: worker
-          image: wikipulse
+          image: arxiv-classifier
           imagePullPolicy: IfNotPresent
-          command: [python, -m, wikipulse.worker]
+          command: [python, -m, arxiv_classifier.worker]
           envFrom:
-            - configMapRef: { name: wikipulse-config }
-            - secretRef: { name: wikipulse-keys }   # API keys: make k8s-secrets (from your .env)
+            - configMapRef: { name: arxiv-classifier-config }
+            - secretRef: { name: arxiv-classifier-keys }   # API keys: make k8s-secrets (from your .env)
           env:
             - name: POSTGRES_PASSWORD
               valueFrom: { secretKeyRef: { name: postgres, key: POSTGRES_PASSWORD } }
             - name: DATABASE_URL   # $(VAR) is expanded by Kubernetes from the variable above
-              value: postgresql://wikipulse:$(POSTGRES_PASSWORD)@postgres:5432/wikipulse
+              value: postgresql://arxiv:$(POSTGRES_PASSWORD)@postgres:5432/arxiv
           securityContext: { runAsNonRoot: true, allowPrivilegeEscalation: false }
           resources:
             requests: { cpu: 100m, memory: 128Mi }
